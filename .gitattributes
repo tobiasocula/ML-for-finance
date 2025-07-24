@@ -1,0 +1,2 @@
+main/venv/Lib/site-packages/**/*.dll filter=lfs diff=lfs merge=lfs -text
+main/venv/Lib/site-packages/**/*.pyd filter=lfs diff=lfs merge=lfs -text
