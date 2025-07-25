@@ -81,10 +81,8 @@ def main():
             # Extract normalization range for min/max scaling (excluding DaySin)
             normalization_range = data[i - le:i].drop(['DaySin'], axis=1)
             
-
             min_vals = normalization_range.min(axis=0)
             max_vals = normalization_range.max(axis=0)
-
 
             # Normalize input features for the window (including DaySin)
             X_window = data.iloc[i:i+wl].copy()

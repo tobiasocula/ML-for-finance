@@ -33,9 +33,10 @@ def run(X_train, Y_train, X_val, Y_val, window_length, n_neurons, epochs, batch_
     ])
     optimizer = keras.optimizers.Adam(learning_rate=1e-4, clipnorm=1.0)
     model.compile(optimizer=optimizer, loss='mse')
-    model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size)
-    hist = model.evaluate(X_val, Y_val) # is float
-    return hist, model
+    hist = model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size, validation_data=(
+        X_val, Y_val
+    ))
+    return hist.history, model
 
 def normalize(X, min, max):
     denominator = (max - min)
@@ -61,14 +62,12 @@ def main():
     N_SUBPROCESSES = 10
     session_vars = []
     data = find_relevant_csv(os.path.join('data', 'stocks_5m'), 'AAPL')
-    print(data)
     data.index = pd.to_datetime(data.index)
 
     model_counter = 0
 
     data['Session'] = np.where((9 <= data.index.hour) & (data.index.hour <= 12), 0, 1)
 
-    errors = []
     counter = 0
 
     for params, is_last in with_last_flag(itertools.product(
@@ -90,7 +89,7 @@ def main():
             # Normalize input features for the window (including DaySin)
             X_window = data.iloc[i:i+wl].copy()
             X_window_normalized = (X_window.drop(['Session'], axis=1) - min_vals) / (max_vals - min_vals + 1e-8)
-            X_window_normalized['Session'] = X_window['Session']  # add back DaySin
+            X_window_normalized['Session'] = X_window['Session']
 
             X.append(X_window_normalized.values)  # shape (wl, features)
 
@@ -119,31 +118,29 @@ def main():
 
         if counter % N_SUBPROCESSES == 0 and i != 0 or is_last:
             with Pool(N_SUBPROCESSES) as pool:
-                results = pool.starmap(run, session_vars) # list of errors
+                results = pool.starmap(run, session_vars)
             for r in results:
-                err, mdl = r[0], r[1]
-                errors.append(err)
+                hist, mdl = r[0], r[1]
                 
                 mdl.save(os.path.join(save_path, f"{model_name}_{model_counter}.keras"))
+                json_data[f"{model_name}_{model_counter}"] = {
+                    "params": {
+                        "n_neurons": nn,
+                        "window_length": wl,
+                        "pct_train_data": ptd,
+                        "epochs": ep,
+                        "batch_size": bs,
+                        "forecast_horizon": fh,
+                        "epoch_length": le
+                    },
+                    "training_loss_per_epoch": hist['loss'],
+                    "validation_loss_per_epoch": hist["val_loss"]
+                }
                 model_counter += 1
 
             session_vars = []
 
         counter += 1
-
-        json_data[f"{model_name}_{counter}"] = {
-            "params": {
-                "n_neurons": nn,
-                "window_length": wl,
-                "pct_train_data": ptd,
-                "epochs": ep,
-                "batch_size": bs,
-                "forecast_horizon": fh,
-                "epoch_length": le
-            },
-            "errors": errors
-        }
-        errors = []
 
     
     with open(os.path.join(script_dir, 'hist.json'), 'w') as f:
