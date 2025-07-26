@@ -3,13 +3,13 @@ import pandas as pd
 import sys
 import os
 
-interval = '5m'
+interval = '1d'
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(os.path.dirname(script_dir), f'data/stocks_{interval}')
 
-ticker_data = pd.read_csv('../data/ticker_data.csv')
-tickers = ticker_data["Symbol"].values
+tickers = ['TSLA']
+
 for t in tickers:
 
     df = yf.Ticker(t).history(interval=interval, period='max')
@@ -20,7 +20,3 @@ for t in tickers:
     name = f"{t} {df.index.min()} {df.index.max()} {interval}.csv"
     name = name.replace(":", "-").replace(" ", "--")
     df.to_csv(os.path.join(data_dir, name))
-        
-
-
-

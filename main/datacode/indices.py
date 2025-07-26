@@ -6,21 +6,22 @@ import os
 interval = '5m'
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-data_dir = os.path.join(os.path.dirname(script_dir), f'data/stocks_{interval}')
+data_dir = os.path.join(os.path.dirname(script_dir), f'data/indices_{interval}')
 
-ticker_data = pd.read_csv('../data/ticker_data.csv')
-tickers = ticker_data["Symbol"].values
-for t in tickers:
+
+
+indices = ['^GSPC', '^DJI', '^IXIC', '^NYA', '^RUT']
+# s&p500, dow jones, nasdaq, nyse, russel
+
+
+
+for t in indices:
 
     df = yf.Ticker(t).history(interval=interval, period='max')
     df = df.drop(
         [c for c in df.columns if c not in ['Date', 'Open' ,'High', 'Close', 'Low']], axis=1
     )
     df = df.tz_localize(None)
-    name = f"{t} {df.index.min()} {df.index.max()} {interval}.csv"
-    name = name.replace(":", "-").replace(" ", "--")
+    name = f"{t}--{df.index.min()}--{df.index.max()}--{interval}.csv".replace(":", "-")
     df.to_csv(os.path.join(data_dir, name))
         
-
-
-

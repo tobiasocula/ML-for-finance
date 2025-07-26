@@ -5,6 +5,8 @@ async def main():
     ib = IB()
     # Connect asynchronously to IB Gateway or TWS (adjust port if needed)
     await ib.connectAsync(host="127.0.0.1", port=4002)
+
+    ib.reqMarketDataType(3)
     
     # Define a contract for AAPL stock on SMART exchange priced in USD
     contract = Stock(symbol='AAPL', exchange='SMART', currency='USD')
@@ -24,7 +26,7 @@ async def main():
     ticker = ib.reqMktData(qualified_contract, '', False, False)
     
     # Stream live quotes for 30 seconds, printing every second
-    for _ in range(30):
+    for _ in range(100):
         await asyncio.sleep(1)
         # Check if data has been received and print it
         if ticker.last:

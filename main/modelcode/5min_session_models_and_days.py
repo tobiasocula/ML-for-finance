@@ -46,7 +46,7 @@ def normalize(X, min, max):
 
 def main():
 
-    with open(os.path.join(script_dir, 'hist.json'), "r") as f:
+    with open(os.path.join(save_path, 'model_info.json'), "r") as f:
         json_data = json.load(f)
 
     window_length = [100] # approx 1 workday
@@ -58,6 +58,8 @@ def main():
     batch_size = [24, 36, 48]
 
     model_name = "5min_session_session_model"
+
+    model_desc = "Trained on 5min AAPL data, based on OHCL data + session data"
 
     N_SUBPROCESSES = 10
     session_vars = []
@@ -134,7 +136,8 @@ def main():
                         "epoch_length": le
                     },
                     "training_loss_per_epoch": hist['loss'],
-                    "validation_loss_per_epoch": hist["val_loss"]
+                    "validation_loss_per_epoch": hist["val_loss"],
+                    "description": model_desc
                 }
                 model_counter += 1
 
@@ -143,7 +146,7 @@ def main():
         counter += 1
 
     
-    with open(os.path.join(script_dir, 'hist.json'), 'w') as f:
+    with open(os.path.join(save_path, 'model_info.json'), 'w') as f:
         json.dump(json_data, f)
 
 

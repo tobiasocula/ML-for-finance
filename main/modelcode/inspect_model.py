@@ -1,17 +1,19 @@
-import keras
+import json
+import os
 
-model_name = 'DaySin_OCHL_model.keras'
+model_name = "mult_candle_model_0"
 
-model = keras.models.load_model('../models/' + model_name)
-model.summary()
+script_dir = os.path.dirname(os.path.abspath(__file__))
+models_path = os.path.join(os.path.dirname(script_dir), 'models')
+
+with open(os.path.join(models_path, "hist.json"), "r") as f:
+    d = json.load(f)
+
+model_json = d[f"{model_name}"]
+print('PARAMS')
+for pkey, pval in model_json['params'].items():
+    print(pkey, ':', pval)
+
 print()
-print('LAYERS')
-for layer in model.layers:
-    print('STATS')
-    print(layer.name, layer.count_params())
-    print()
-    print('CONFIG')
-    print(layer.get_config())
-    print()
-
-# get weights: model.get_weights()
+print('DESCRIPTION')
+print(model_json['description'])

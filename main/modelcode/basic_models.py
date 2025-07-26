@@ -4,9 +4,12 @@ import pandas as pd
 import sys
 import numpy as np
 import math
-import json
+import json, os
 from multiprocessing import Pool
-from more_itertools import peekable
+from ..datacode.find_relevant_csv import find_relevant_csv
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+save_path = os.path.join(os.path.dirname(script_dir), 'models')
 
 def with_last_flag(iterable):
     """Yields (item, is_last) for each item in iterable."""
@@ -33,11 +36,15 @@ def run(X_train, Y_train, X_val, Y_val, window_length, n_neurons, epochs, batch_
         keras.layers.Dense(1)  # Output layer for regression (predicting price)
     ])
     model.compile(optimizer='adam', loss='mse')
-    model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size)
-    hist = model.evaluate(X_val, Y_val) # is float
-    return hist, model
+    hist = model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size, validation_data=(X_val, Y_val))
+    return hist.history, model
 
 def main():
+
+    with open(os.path.join(save_path, 'model_info.json'), "r") as f:
+        json_data = json.load(f)
+
+    model_desc = "Simple OHCL model trained on AAPL stock data (5m)"
 
     window_length = [100]
     pct_train_data = [0.9]
@@ -50,12 +57,13 @@ def main():
 
     N_SUBPROCESSES = 10
     session_vars = []
-    data = pd.read_csv('data/AAPL.csv')[['Open', 'High', 'Low', 'Close']].values
-    errors = []
+    data = find_relevant_csv(os.path.join('data', 'stocks_5m'), 'AAPL').values
     counter = 0
     dct = {} # will store json
 
     model_name = 'OHCL_model'
+
+    model_counter = 0
 
 
     for params, is_last in with_last_flag(itertools.product(
@@ -90,30 +98,32 @@ def main():
             with Pool(N_SUBPROCESSES) as pool:
                 results = pool.starmap(run, session_vars) # list of errors
             for r in results:
-                err, mdl = r[0], r[1]
-                errors.append(err)
-                mdl.save(f"{model_name}_{counter}.keras")
+                hist, mdl = r[0], r[1]
+                mdl.save(f"{model_name}_{model_counter}.keras")
+
+                json_data[f"{model_name}_{model_counter}"] = {
+                    "params": {
+                        "n_neurons": nn,
+                        "window_length": wl,
+                        "pct_train_data": ptd,
+                        "epochs": ep,
+                        "batch_size": bs,
+                        "forecast_horizon": fh,
+                        "epoch_length": le
+                    },
+                    "training_loss_per_epoch": hist['loss'],
+                    "validation_loss_per_epoch": hist["val_loss"],
+                    "description": model_desc
+                }
+                model_counter += 1
 
             session_vars = []
 
         counter += 1
 
-        dct[f"{model_name}_{counter}"] = {
-            "params": {
-                "n_neurons": nn,
-                "window_length": wl,
-                "pct_train_data": ptd,
-                "epochs": ep,
-                "batch_size": bs,
-                "forecast_horizon": fh,
-                "epoch_length": le
-            },
-            "errors": errors
-        }
-        errors = []
 
-    with open("hist.json", "w") as f:
-        json.dump(dct, f)
+    with open(os.path.join(save_path, 'model_info.json'), 'w') as f:
+        json.dump(json_data, f)
             
 if __name__ == "__main__":
     main()
