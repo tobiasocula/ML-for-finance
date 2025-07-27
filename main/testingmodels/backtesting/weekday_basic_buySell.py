@@ -1,10 +1,9 @@
 import keras
-from backtesting import Backtest
-from backtesting.lib import TrailingStrategy
+from backtesting import Backtest, Strategy
 import pandas as pd
 import numpy as np
 import sys, os, json, time
-from ..datacode.find_relevant_csv import find_relevant_csv
+from ...datacode.find_relevant_csv import find_relevant_csv
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(os.path.dirname(script_dir), 'models')
@@ -24,18 +23,14 @@ with open(os.path.join(model_path, 'hist.json'), 'r') as f:
 model_json = json_data[model_name]
 params = model_json['params']
 
-class BT(TrailingStrategy):
+
+
+
+class BT(Strategy):
     def init(self):
         self.risk = 0.01
 
-        self.thold = 0.001 # pct difference between true and predicted >= val to buy/sell
-        self.sl_ratio = 0.95
-        self.sltp = 1.5
-
-    
     def next(self):
-        super().init()
-        super().set_trailing_sl(4)
         
         if len(self.data.df) >= params['epoch_length']:
             data = self.data.df.drop(['Volume'], axis=1)
@@ -64,13 +59,12 @@ class BT(TrailingStrategy):
 
             pred_unnorm = close_min + prediction * (close_max - close_min + 1e-8)
 
-            diff = pred_unnorm - curr_price
-            diff_pct = diff / curr_price
-            if abs(diff_pct) >= self.thold:
-                if diff_pct > 0:
-                    self.buy(size=self.risk, sl=curr_price*(1-self.sl_ratio), tp=curr_price*(1+self.sl_ratio)*self.sltp)
-                else:
-                    self.sell(size=self.risk, sl=curr_price*(1+self.sl_ratio), tp=curr_price*(1-self.sl_ratio)*self.sltp)
+
+            if pred_unnorm >= curr_price:
+                self.buy(size=self.risk)
+            else:
+                self.sell(size=self.risk)
+
 
 bt = Backtest(df, BT, cash=100_000, exclusive_orders=True, commission=0, spread=0)
 results = bt.run()

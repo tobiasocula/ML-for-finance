@@ -1,16 +1,17 @@
-import os, json, keras, sys
-import pandas as pd
+import os, json
 import matplotlib.pyplot as plt
-import numpy as np
+from pathlib import Path
 
-model_names = [f"DaySin_OHCL_model_{k}" for k in range(1, 9)]
+model_names = [f"multiple_stocks_model_5min_{k}" for k in range(1, 9)]
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-models_path = os.path.join(os.path.dirname(script_dir), 'models')
-colors = plt.cm.get_cmap('tab20')
+root = Path.cwd()
 
-with open(os.path.join(models_path, "hist.json"), "r") as f:
+models_path = root/'main'/'models'
+
+with open(os.path.join(models_path, "model_info.json"), "r") as f:
     hist = json.load(f)
+
+colors = plt.cm.get_cmap('tab20')
 
 fig, ax = plt.subplots()
 

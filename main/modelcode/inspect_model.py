@@ -1,12 +1,12 @@
-import json
-import os
+import json, os
+from pathlib import Path
 
-model_name = "mult_candle_model_0"
+model_name = "multiple_stocks_model_5min_7"
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-models_path = os.path.join(os.path.dirname(script_dir), 'models')
+root = Path.cwd()
+models_path = root / 'main' / 'models'
 
-with open(os.path.join(models_path, "hist.json"), "r") as f:
+with open(os.path.join(models_path, "model_info.json"), "r") as f:
     d = json.load(f)
 
 model_json = d[f"{model_name}"]
