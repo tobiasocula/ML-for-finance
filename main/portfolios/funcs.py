@@ -158,7 +158,7 @@ def ENB2(returns, weights):
         finalbot += p_i**2
     return 1 / finalbot
 
-def ENB3(returns, weights):
+def ENB3(returns):
     """
     Evaluation function for effective number of bets
     Similar to ENB2, but this uses the exact equation found in
