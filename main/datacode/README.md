@@ -1,0 +1,1 @@
+Contains code for the manipulation of financial data, eg. fetching, deleting, changing some csv files, etc.
