@@ -28,7 +28,7 @@ def neg_sharpe(w, returns, returntarget=0.0):
 
 def optimize_sharpe(returns, returntarget=0.0):
     """
-    Optimal weights that maximize Sharpe ratio.
+    Optimal function that maximizes Sharpe ratio.
     """
     n = returns.shape[1]
 
@@ -87,6 +87,10 @@ def optimize_sortino(R, R_target=0.0):
     return result.x
 
 def risk_parity_loss(weights, returns):
+    """
+    Loss function of the risk parity method of optimizing weights.
+    Goal is to minimize this.
+    """
     cov = np.cov(returns, rowvar=False)
     stdev = np.sqrt(portfolio_variance(weights, cov))
     Sw = cov @ weights.T
@@ -94,6 +98,12 @@ def risk_parity_loss(weights, returns):
     return sum((weights[i] * Sw[i] / stdev - stdev / n)**2 for i in range(n))
 
 def risk_parity(returns):
+    """
+    Optimalization function regarding the concept of risk parity.
+    Paper: https://docslib.org/doc/5064524/an-introduction-to-risk-parity-hossein-kazemi
+    This method aims to optimize asset weight allocations such that every asset's risk quantity
+    contributes equally to the portfolio in question.
+    """
 
     n = returns.shape[1]
     bounds = [(0, 1) for _ in range(n)]
@@ -114,14 +124,17 @@ def risk_parity(returns):
     )
 
     return result.x
-    
-
-
-
 
 def ENB1(returns):
     """
-    Evaluation function, determines amount of risk factors
+    Evaluation function, determines amount of risk factors.
+    Eigenvals determine amount of principal components (each one
+    is linked to the magnitude of the corresponding eigenvector in the
+    covariance matrix's SVD).
+    If all variance is concentrated in one eigenvalue (one dominant risk factor),
+    then ENB ~= 1. If not, ENB is larger.
+    From paper: https://portfoliooptimizer.io/blog/the-effective-number-of-bets-measuring-portfolio-diversification/
+    Related to effective rank of a matrix.
     """
     cov = np.cov(returns, rowvar=False)
     L, _ = np.linalg.eig(cov)
@@ -130,6 +143,8 @@ def ENB1(returns):
 def ENB2(returns, weights):
     """
     Evaluation function, determines amount of risk factors
+    This is actually the inverse of the HH-index:
+    https://en.wikipedia.org/wiki/Herfindahl%E2%80%93Hirschman_index
     """
 
     cov = np.cov(returns, rowvar=False)
@@ -143,6 +158,18 @@ def ENB2(returns, weights):
         finalbot += p_i**2
     return 1 / finalbot
 
+def ENB3(returns, weights):
+    """
+    Evaluation function for effective number of bets
+    Similar to ENB2, but this uses the exact equation found in
+    https://www.researchgate.net/publication/37450697_The_Effective_Rank_A_Measure_of_Effective_Dimensionality
+    """
+    cov = np.cov(returns, rowvar=False)
+    L, M = np.linalg.eig(cov)
+    norm_eigenvals = L / sum(L)
+    return -sum(eigv * np.log(eigv) for eigv in norm_eigenvals)
+
+
 def random_portfolios(all_tickers, subset_size, datafolders, attempts,
                      optimize_funcs, eval_funcs):
     """
@@ -152,8 +179,6 @@ def random_portfolios(all_tickers, subset_size, datafolders, attempts,
     """
 
     dfs = correct_csvs(all_tickers, datafolders)
-
-    print('lengths:'); print([len(k) for k in dfs])
 
     allportfolios = []
 
@@ -177,7 +202,7 @@ def random_portfolios(all_tickers, subset_size, datafolders, attempts,
 
         res = {
             'tickers': tickers,
-            'allweights': allweights, # is list of lists
+            'allweights': allweights,
             'allmetrics': allmetrics
         }
         allportfolios.append(res)
