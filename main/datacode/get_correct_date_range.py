@@ -15,15 +15,21 @@ def correct_csvs(tickers, data_dirs):
     
     # Find intersected index (common datetimes) across all dataframes
     common_index = dfs[0].index
+    print('common index:', common_index)
     for df in dfs[1:]:
         common_index = common_index.intersection(df.index)
+        print('current index:', df.index)
+        """
+        Index(['2014-09-17', '2014-09-18', '2014-09-19', '2014-09-22', '2014-09-23',
+       '2014-09-24', '2014-09-25', '2014-09-26', '2014-09-29', '2014-09-30',
+       ...
+       '2025-07-14', '2025-07-15', '2025-07-16', '2025-07-17', '2025-07-18',
+       '2025-07-21', '2025-07-22', '2025-07-23', '2025-07-24', '2025-07-25'],
+       """
     
     res = []
     for df in dfs:
         # Filter dataframe to only include rows with common index values
         filtered_df = df.loc[common_index]
         res.append(filtered_df)
-        print('Filtered DataFrame:')
-        print(filtered_df)
-        print()
     return res
