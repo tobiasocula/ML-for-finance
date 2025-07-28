@@ -133,7 +133,7 @@ def main():
 
                 min_vals = normalization_range.min(axis=0)
                 max_vals = normalization_range.max(axis=0)
-                    
+
                 # Normalize input features for the window (including DaySin)
                 X_window = data.iloc[i:i+wl].copy()
                 X_window_normalized = (X_window - min_vals) / (max_vals - min_vals + 1e-8)
@@ -207,6 +207,7 @@ def main():
 
     
     with open(os.path.join(data_path, 'model_info.json'), 'w') as f:
+        print('saving json to')
         json.dump(json_data, f)
 
 

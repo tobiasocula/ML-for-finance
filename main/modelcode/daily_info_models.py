@@ -139,6 +139,8 @@ def main():
                     "validation_loss_per_epoch": hist["val_loss"]
                 }
 
+                print('UPDATING dct:', dct[f"{model_name}_{model_counter}"])
+
                 model_counter += 1
 
             session_vars = []
@@ -146,6 +148,7 @@ def main():
         counter += 1
 
     with open(os.path.join(save_path, "hist.json"), "w") as f:
+        print('SAVING DCT')
         json.dump(dct, f)
 
 
