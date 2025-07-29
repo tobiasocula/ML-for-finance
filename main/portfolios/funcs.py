@@ -1,16 +1,17 @@
 from scipy.optimize import minimize
 import numpy as np
 import random
-from ..datacode.get_correct_date_range import correct_csvs
+import datetime
+import sys
 
 def portfolio_variance(w, cov):
     return w.T @ cov @ w
 
-def neg_sortino(w, R, R_target=0.0):
+def neg_sortino(w, returns, R_target=0.0):
     """
     Returns sortino ratio (positive return per downside stdev)
     """
-    R_p = R @ w # (T, 1), returns per timestamp
+    R_p = returns @ w # (T, 1), returns per timestamp
     mean_excess_return = np.mean(R_p) - R_target
     downside_returns = np.minimum(R_p - R_target, 0)
     downside_dev = np.sqrt(np.mean(downside_returns ** 2))
@@ -28,7 +29,7 @@ def neg_sharpe(w, returns, returntarget=0.0):
 
 def optimize_sharpe(returns, returntarget=0.0):
     """
-    Optimal function that maximizes Sharpe ratio.
+    Optimalization function that maximizes Sharpe ratio.
     """
     n = returns.shape[1]
 
@@ -46,26 +47,28 @@ def optimize_sharpe(returns, returntarget=0.0):
 
     return result.x
 
-def optimize_variance(R):
+def optimize_variance(returns, returntarget=0.0):
     """
     Optimalization function
-    Determines optimal weights for minimizing variance of returns
+    Determines optimal weights for minimizing variance of returns.
     """
-    cov = np.cov(R, rowvar=False)
+    cov = np.cov(returns, rowvar=False)
     n = cov.shape[0]
+    returns_per_asset = np.mean(returns, axis=0) * 365 # yearly returns
     init_w = np.ones(n) / n
     bounds = [(0, 1)] * n
-    cons = ({'type': 'eq', 'fun': lambda w: np.sum(w) - 1})
+    cons = ({'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
+            {'type': 'eq', 'fun': lambda w: np.dot(w, returns_per_asset) - returntarget})
 
     result = minimize(portfolio_variance, init_w, args=(cov,), bounds=bounds, constraints=cons)
     return result.x
 
-def optimize_sortino(R, R_target=0.0):
+def optimize_sortino(returns, R_target=0.0):
     """
     Optimalization function
     Determines optimal asset weights for maximizing sortino ratio
     """
-    n = R.shape[1] # n assets
+    n = returns.shape[1] # n assets
     w0 = np.ones(n) / n  # start with equal weights
 
     constraints = ({
@@ -76,7 +79,7 @@ def optimize_sortino(R, R_target=0.0):
 
     result = minimize(
         neg_sortino, w0,
-        args=(R, R_target),
+        args=(returns, R_target),
         method='SLSQP',
         bounds=bounds,
         constraints=constraints,
@@ -91,6 +94,7 @@ def risk_parity_loss(weights, returns):
     Loss function of the risk parity method of optimizing weights.
     Goal is to minimize this.
     """
+    print('weights:;;', weights)
     cov = np.cov(returns, rowvar=False)
     stdev = np.sqrt(portfolio_variance(weights, cov))
     Sw = cov @ weights.T
@@ -125,7 +129,7 @@ def risk_parity(returns):
 
     return result.x
 
-def ENB1(returns):
+def ENB1(w, returns):
     """
     Evaluation function, determines amount of risk factors.
     Eigenvals determine amount of principal components (each one
@@ -140,7 +144,7 @@ def ENB1(returns):
     L, _ = np.linalg.eig(cov)
     return sum(L)**2 / sum(k**2 for k in L)
 
-def ENB2(returns, weights):
+def ENB2(weights, returns):
     """
     Evaluation function, determines amount of risk factors
     This is actually the inverse of the HH-index:
@@ -158,30 +162,31 @@ def ENB2(returns, weights):
         finalbot += p_i**2
     return 1 / finalbot
 
-def ENB3(returns):
+def ENB3(w, returns):
     """
     Evaluation function for effective number of bets
     Similar to ENB2, but this uses the exact equation found in
     https://www.researchgate.net/publication/37450697_The_Effective_Rank_A_Measure_of_Effective_Dimensionality
     """
     cov = np.cov(returns, rowvar=False)
-    L, M = np.linalg.eig(cov)
+    L, _ = np.linalg.eig(cov)
     norm_eigenvals = L / sum(L)
     return -sum(eigv * np.log(eigv) for eigv in norm_eigenvals)
 
+def portfolio_performance(returns, weights):
+    """Returns portfolio total return and std (risk)."""
+    cov = np.cov(returns, rowvar=False)
+    return_vect = np.mean(returns, axis=0) # size of (n_assets, 1)
+    return np.dot(return_vect, weights), np.sqrt(portfolio_variance(weights, cov))
 
-def random_portfolios(all_tickers, subset_size, datafolders, attempts,
+def random_portfolios(all_tickers, subset_size, dfs, attempts,
                      optimize_funcs, eval_funcs):
     """
     Create random portfolios out of all_tickers, with size subset_size.
     Optimize funcs: should accept returns as parameter
     Eval funcs: should accept returns and weights as params
     """
-
-    dfs = correct_csvs(all_tickers, datafolders)
-
     allportfolios = []
-
     for _ in range(attempts):
 
         idx = random.sample(range(len(dfs)), k=subset_size) # list of dfs
@@ -197,7 +202,7 @@ def random_portfolios(all_tickers, subset_size, datafolders, attempts,
             optimal_weights = opfunc(returns)
             allweights.append(optimal_weights)
             for evalfunc in eval_funcs:
-                m = evalfunc(optimal_weights, returns)
+                m = evalfunc(returns, optimal_weights)
                 allmetrics.append(m)
 
         res = {
@@ -209,11 +214,10 @@ def random_portfolios(all_tickers, subset_size, datafolders, attempts,
 
     return allportfolios
         
-def optimize_portfolio(all_tickers, subset_size, datafolders, attempts,
+def optimize_portfolio(all_tickers, subset_size, dfs, attempts,
                      optimize_func, eval_func):
     """Similar to random_portfolios, but decides best portfolio based on optimize_func and eval_func"""
-    
-    dfs = correct_csvs(all_tickers, datafolders)
+
 
     best_weights = None
     best_metric = 0
@@ -227,9 +231,8 @@ def optimize_portfolio(all_tickers, subset_size, datafolders, attempts,
         returns = np.empty(shape=(len(dfs[0])-1, len(all_tickers)))
         for i, df in enumerate(assets):
             returns[:,i] = df['Close'].pct_change().values[1:]
-
         optimal_weights = optimize_func(returns)
-        metric = eval_func(returns, optimal_weights)
+        metric = eval_func(optimal_weights, returns)
         if metric > best_metric:
             best_metric = metric
             best_weights = optimal_weights

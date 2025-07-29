@@ -8,4 +8,5 @@ workdir = datadir/'stocks_1d'
 
 for file in workdir.iterdir():
     if 'nat' in file.name.lower():
-        os.remove(str(workdir/file))
+        os.remove(str(workdir/file.name))
+        print('removing', file.name)
