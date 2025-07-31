@@ -19,6 +19,14 @@ def neg_sortino(w, returns, R_target=0.0):
         return np.inf
     return -mean_excess_return / downside_dev
 
+def sharpe(weights, returns, returntarget=0.0):
+    totalreturns = returns @ weights
+    cov = np.cov(returns, rowvar=False)
+    volatility = np.sqrt(portfolio_variance(weights, cov))
+    if volatility == 0:
+        return np.inf
+    return (np.mean(totalreturns) - returntarget) / volatility
+
 def neg_sharpe(w, returns, returntarget=0.0):
     totalreturns = returns @ w
     cov = np.cov(returns, rowvar=False)
