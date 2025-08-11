@@ -15,8 +15,6 @@ current = Path(__file__).resolve().parent
 portfolio_tickers = ['QQQ', 'SPY', 'EEM', 'SPXS', 'HYG', 'BTC-EUR']
 datadirs = [str(datadir/'etfs_1d') for _ in range(5)] + [str(datadir/'crypto_1d')]
 
-test_summary = {}
-
 ci = None
 dfs = []
 for dd, pt in zip(datadirs, portfolio_tickers):

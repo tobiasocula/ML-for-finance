@@ -9,6 +9,7 @@ import sys
 import numpy as np
 from ...datacode.find_relevant_csv import find_relevant_csv
 from stable_baselines3.sac import MlpPolicy
+import os
 
 class PortfolioVenv(gym.Env):
 
@@ -109,7 +110,6 @@ datadirs = [
         str(indicesdir) for _ in range(len(list(indicesdir.iterdir())))
     ]
 
-
 ci = None
 dfs = []
 for dd, pt in zip(datadirs, portfolio_tickers):
@@ -125,10 +125,7 @@ learn_pct = 0.85
 result_df = result_df.loc[result_df.index[:int(learn_pct*len(result_df))]]
 
 
-import os
-from stable_baselines3 import SAC
-from stable_baselines3.sac import MlpPolicy
-import json
+
 
 def main():
     checkpoint_path = currentdir / "cont_action_space_model"
