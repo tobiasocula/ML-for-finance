@@ -7,9 +7,21 @@ import sys
 def portfolio_variance(w, cov):
     return w.T @ cov @ w
 
-def neg_sortino(w, returns, R_target=0.0):
+def sortino(w, returns, R_target=0.0):
     """
     Returns sortino ratio (positive return per downside stdev)
+    """
+    R_p = returns @ w # (T, 1), returns per timestamp
+    mean_excess_return = np.mean(R_p) - R_target
+    downside_returns = np.minimum(R_p - R_target, 0)
+    downside_dev = np.sqrt(np.mean(downside_returns ** 2))
+    if downside_dev == 0:
+        return np.inf
+    return mean_excess_return / downside_dev
+
+def neg_sortino(w, returns, R_target=0.0):
+    """
+    Returns negative sortino ratio (positive return per downside stdev)
     """
     R_p = returns @ w # (T, 1), returns per timestamp
     mean_excess_return = np.mean(R_p) - R_target
@@ -20,6 +32,10 @@ def neg_sortino(w, returns, R_target=0.0):
     return -mean_excess_return / downside_dev
 
 def sharpe(weights, returns, returntarget=0.0):
+    """
+    weights: N x 1 matrix
+    returns: T x N matrix
+    """
     totalreturns = returns @ weights
     cov = np.cov(returns, rowvar=False)
     volatility = np.sqrt(portfolio_variance(weights, cov))
@@ -28,6 +44,10 @@ def sharpe(weights, returns, returntarget=0.0):
     return (np.mean(totalreturns) - returntarget) / volatility
 
 def neg_sharpe(w, returns, returntarget=0.0):
+    """
+    weights: N x 1 matrix
+    returns: T x N matrix
+    """
     totalreturns = returns @ w
     cov = np.cov(returns, rowvar=False)
     volatility = np.sqrt(portfolio_variance(w, cov))
@@ -186,72 +206,3 @@ def portfolio_performance(returns, weights):
     cov = np.cov(returns, rowvar=False)
     return_vect = np.mean(returns, axis=0) # size of (n_assets, 1)
     return np.dot(return_vect, weights), np.sqrt(portfolio_variance(weights, cov))
-
-def random_portfolios(all_tickers, subset_size, dfs, attempts,
-                     optimize_funcs, eval_funcs):
-    """
-    Create random portfolios out of all_tickers, with size subset_size.
-    Optimize funcs: should accept returns as parameter
-    Eval funcs: should accept returns and weights as params
-    """
-    allportfolios = []
-    for _ in range(attempts):
-
-        idx = random.sample(range(len(dfs)), k=subset_size) # list of dfs
-        assets = [dfs[j] for j in idx]
-        tickers = [all_tickers[j] for j in idx]
-        returns = np.empty(shape=(len(dfs[0])-1, len(all_tickers)))
-        for i, df in enumerate(assets):
-            returns[:,i] = df['Close'].pct_change().values[1:]
-        
-        allmetrics = []
-        allweights = []
-        for opfunc in optimize_funcs:
-            optimal_weights = opfunc(returns)
-            allweights.append(optimal_weights)
-            for evalfunc in eval_funcs:
-                m = evalfunc(returns, optimal_weights)
-                allmetrics.append(m)
-
-        res = {
-            'tickers': tickers,
-            'allweights': allweights,
-            'allmetrics': allmetrics
-        }
-        allportfolios.append(res)
-
-    return allportfolios
-        
-def optimize_portfolio(all_tickers, subset_size, dfs, attempts,
-                     optimize_func, eval_func):
-    """Similar to random_portfolios, but decides best portfolio based on optimize_func and eval_func"""
-
-
-    best_weights = None
-    best_metric = 0
-    best_tickers = None
-
-    for _ in range(attempts):
-
-        idx = random.sample(range(len(dfs)), k=subset_size) # list of dfs
-        assets = [dfs[j] for j in idx]
-        tickers = [all_tickers[j] for j in idx]
-        returns = np.empty(shape=(len(dfs[0])-1, len(all_tickers)))
-        for i, df in enumerate(assets):
-            returns[:,i] = df['Close'].pct_change().values[1:]
-        optimal_weights = optimize_func(returns)
-        metric = eval_func(optimal_weights, returns)
-        if metric > best_metric:
-            best_metric = metric
-            best_weights = optimal_weights
-            best_tickers = tickers
-
-    return best_tickers, best_weights, best_metric
-
-        
-        
-
-
-
-
-
